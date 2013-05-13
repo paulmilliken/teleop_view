@@ -1,0 +1,7 @@
+<library path="lib/libteleop_view">
+
+  <class name="teleop_view/image" type="teleop_view::TeleopNodelet" base_class_type="nodelet::Nodelet">
+    <description>Nodelet to view a sensor_msgs/Image topic</description>
+  </class>
+
+</library>

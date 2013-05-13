@@ -1,0 +1,11 @@
+/**
+@mainpage teleop_view
+
+@htmlinclude manifest.html
+
+@b teleop_view is a simple utility for viewing an image topic.  It is based on
+http://www.ros.org/wiki/image_view.
+
+Currently this package has no public code API.
+
+*/
