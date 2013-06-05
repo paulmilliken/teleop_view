@@ -65,7 +65,6 @@ static void destroyNodelet(GtkWidget *widget, gpointer data)
 }
 #endif
 
-
 namespace teleop_view {
 
 class TeleopNodelet : public nodelet::Nodelet
@@ -85,6 +84,7 @@ class TeleopNodelet : public nodelet::Nodelet
   virtual void onInit();
   
   void imageCb(const sensor_msgs::ImageConstPtr& msg);
+  void displayStaleImageText(void);
   bool stale_flag;
   int staleness_counter;
   void mirrorCb(const std_msgs::Bool msg);
@@ -158,23 +158,23 @@ void TeleopNodelet::onInit()
   startWindowThread();
 
   image_transport::ImageTransport it(nh);
-  image_transport::TransportHints hints(transport, ros::TransportHints(), getPrivateNodeHandle());
+  image_transport::TransportHints hints(transport, ros::TransportHints(), 
+                                                        getPrivateNodeHandle());
   sub_image = it.subscribe(topic, 1, &TeleopNodelet::imageCb, this, hints);
   sub_mirror = nh.subscribe("/axis/mirror", 1, &TeleopNodelet::mirrorCb, this);
   pub = nh.advertise<std_msgs::Bool>("is_stale", 1);
   ros::Rate r(2);
+  std_msgs::Bool msg;
   while(ros::ok()) {
-    std_msgs::Bool msg;
-    msg.data = stale_flag;
-    pub.publish(msg);
     staleness_counter++;
     if (staleness_counter>2) {
-      stale_flag = true; // is_stale defaults to true until reset by imageCb()
-      if (! last_image_.empty()) {
-        TeleopNodelet::imageCb(last_msg_);
-      }
+      stale_flag = true; // stale_flag defaults to true until reset by imageCb()
+      TeleopNodelet::displayStaleImageText();
+    } else {
       stale_flag = false;
     }
+    msg.data = stale_flag;
+    pub.publish(msg);
     r.sleep();
   }
 }
@@ -230,24 +230,30 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
   // the sake of other callback functions.
   last_msg_ = msg;
 
+  if (!last_image_.empty()) {
+    staleness_counter = 0;
+    if (mirror_flag) {
+      cv::flip(last_image_, last_image_, 1);
+      cv::putText(last_image_, "Mirrored", cv::Point(20, 30),
+			CV_FONT_HERSHEY_PLAIN, 1.5, CV_RGB(250,0,0), 2);
+    }
+  }
   // Must release the mutex before calling cv::imshow, or can deadlock against
   // OpenCV's window mutex.
   image_mutex_.unlock();
-  if (!last_image_.empty())
-    if (stale_flag) {
-      cv::putText(last_image_, "Stream is not live", cv::Point(50,100), 
-			CV_FONT_HERSHEY_PLAIN, 4, CV_RGB(250,0,0), 5);
-    } else {
-      staleness_counter = 0;
-      if (mirror_flag) {
-        cv::flip(last_image_, last_image_, 1);
-	cv::putText(last_image_, "Mirrored", cv::Point(20,30),
-			CV_FONT_HERSHEY_PLAIN, 1.5, CV_RGB(250,0,0),2);
-      }
-    }
+  if (!last_image_.empty()) {
     cv::imshow(window_name_, last_image_);
+  }
 }
 
+void TeleopNodelet::displayStaleImageText(void)
+{
+  if (! last_image_.empty()) {
+    cv::putText(last_image_, "Stream is not live", cv::Point(50, 100), 
+			CV_FONT_HERSHEY_PLAIN, 4, CV_RGB(250,0,0), 5);
+    cv::imshow(window_name_, last_image_);
+  }
+}
 
 } // namespace teleop_view
 
