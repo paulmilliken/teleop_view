@@ -236,7 +236,7 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
   if (!last_image_.empty())
     if (stale_flag) {
       cv::putText(last_image_, "Stream is not live", cv::Point(50,100), 
-			CV_FONT_HERSHEY_PLAIN, 4, CV_RGB(250,0,0), 5);
+			CV_FONT_HERSHEY_PLAIN, 3, CV_RGB(250,0,0), 4);
     } else {
       staleness_counter = 0;
       if (mirror_flag) {
