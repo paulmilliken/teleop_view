@@ -110,7 +110,7 @@ TeleopNodelet::~TeleopNodelet()
 void TeleopNodelet::onInit()
 {
   stale_flag = false;
-  staleness_counter = false;
+  staleness_counter = 0;
   mirror_flag = false;
   ros::NodeHandle nh = getNodeHandle();
   ros::NodeHandle local_nh = getPrivateNodeHandle();
@@ -213,7 +213,7 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
       float_image /= max_val;
     }
     last_image_ = float_image;
-  }
+  } 
   else
   {
     // Convert to OpenCV native BGR color
@@ -224,7 +224,7 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
       NODELET_ERROR_THROTTLE(30, "Unable to convert '%s' image to bgr8: '%s'",
                              msg->encoding.c_str(), e.what());
     }
-  }
+  } 
 
   // last_image_ may point to data owned by last_msg_, so we hang onto it for
   // the sake of other callback functions.
@@ -242,17 +242,6 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
   // OpenCV's window mutex.
   image_mutex_.unlock();
   if (!last_image_.empty()) {
-    if (stale_flag) {
-      cv::putText(last_image_, "Stream is not live", cv::Point(50,100), 
-			CV_FONT_HERSHEY_PLAIN, 3, CV_RGB(250,0,0), 4);
-    } else {
-      staleness_counter = 0;
-      if (mirror_flag) {
-        cv::flip(last_image_, last_image_, 1);
-	cv::putText(last_image_, "Mirrored", cv::Point(20,30),
-			CV_FONT_HERSHEY_PLAIN, 1.5, CV_RGB(250,0,0),2);
-      }
-    }
     cv::imshow(window_name_, last_image_);
   }
 }
