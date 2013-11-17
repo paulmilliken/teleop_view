@@ -89,6 +89,7 @@ class TeleopNodelet : public nodelet::Nodelet
   int staleness_counter;
   void mirrorCb(const std_msgs::Bool msg);
   bool mirror_flag;
+  bool odd_frame;
 /*  static void mouseCb(int event, int x, int y, int flags, void* param); */
 
 public:
@@ -112,6 +113,7 @@ void TeleopNodelet::onInit()
   stale_flag = false;
   staleness_counter = 0;
   mirror_flag = false;
+  odd_frame=false;
   ros::NodeHandle nh = getNodeHandle();
   ros::NodeHandle local_nh = getPrivateNodeHandle();
 
@@ -142,7 +144,11 @@ void TeleopNodelet::onInit()
   local_nh.param("filename_format", format_string, std::string("frame%04i.jpg"));
   filename_format_.parse(format_string);
 
-  cv::namedWindow(window_name_, autosize ? CV_WINDOW_AUTOSIZE : 0);
+  if (autosize) {
+    cv::namedWindow(window_name_, CV_WINDOW_AUTOSIZE);
+  } else {
+    cv::namedWindow(window_name_, CV_WINDOW_NORMAL);
+  }
   cvSetWindowProperty(window_name_.c_str(), CV_WND_PROP_FULLSCREEN, 
 							CV_WINDOW_FULLSCREEN);
 #ifdef HAVE_GTK
@@ -187,6 +193,7 @@ void TeleopNodelet::mirrorCb(const std_msgs::Bool msg)
 void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
 {
   image_mutex_.lock();
+  odd_frame = (!odd_frame); // toggle odd_frame between true and false
 
   // May want to view raw bayer data, which CvBridge doesn't know about
   if (msg->encoding.find("bayer") != std::string::npos)
@@ -242,7 +249,9 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
   // OpenCV's window mutex.
   image_mutex_.unlock();
   if (!last_image_.empty()) {
-    cv::imshow(window_name_, last_image_);
+    if (odd_frame) {
+      cv::imshow(window_name_, last_image_);
+    }
   }
 }
 
