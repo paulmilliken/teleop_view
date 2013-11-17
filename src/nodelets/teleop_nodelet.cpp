@@ -89,6 +89,7 @@ class TeleopNodelet : public nodelet::Nodelet
   int staleness_counter;
   void mirrorCb(const std_msgs::Bool msg);
   bool mirror_flag;
+  bool disregard_even_frames;
   bool odd_frame;
 /*  static void mouseCb(int event, int x, int y, int flags, void* param); */
 
@@ -113,7 +114,8 @@ void TeleopNodelet::onInit()
   stale_flag = false;
   staleness_counter = 0;
   mirror_flag = false;
-  odd_frame=false;
+  disregard_even_frames = true;
+  odd_frame = false;
   ros::NodeHandle nh = getNodeHandle();
   ros::NodeHandle local_nh = getPrivateNodeHandle();
 
@@ -249,7 +251,7 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
   // OpenCV's window mutex.
   image_mutex_.unlock();
   if (!last_image_.empty()) {
-    if (odd_frame) {
+    if (!disregard_even_frames | odd_frame) {
       cv::imshow(window_name_, last_image_);
     }
   }
