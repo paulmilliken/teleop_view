@@ -195,14 +195,6 @@ void TeleopNodelet::mirrorCb(const std_msgs::Bool msg)
 void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
 {
   int height, width, width_expanded, start_col;
-  height = msg->height;
-  width = msg->width;
-  width_expanded = int(floor(msg->height)*16.0/9.0);
-  if (width>width_expanded) {
-    width_expanded = width;
-  }
-  // Declare image with space for sidebar
-  cv::Mat last_image_with_sidebar(height, width_expanded, CV_8UC1);
   image_mutex_.lock();
   odd_frame = (!odd_frame); // toggle odd_frame between true and false
 
@@ -243,7 +235,14 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
                              msg->encoding.c_str(), e.what());
     }
   } 
-
+  height = msg->height;
+  width = msg->width;
+  width_expanded = int(floor(msg->height*16.0/9.0));
+  if (width>width_expanded) {
+    width_expanded = width;
+  }
+  // Declare image with space for sidebar
+  cv::Mat last_image_with_sidebar(height, width_expanded, CV_8UC3, cv::Scalar(255,255,200));
   // last_image_ may point to data owned by last_msg_, so we hang onto it for
   // the sake of other callback functions.
   last_msg_ = msg;
@@ -261,7 +260,7 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
   image_mutex_.unlock();
   if (!last_image_.empty()) {
     if (!disregard_even_frames | odd_frame) {
-      last_image_.copyTo(last_image_with_sidebar(cv::Rect(0, 0, width, height)));
+      last_image_.copyTo(last_image_with_sidebar(cv::Rect(0,0,width,height)));
       cv::imshow(window_name_, last_image_with_sidebar);
     }
   }
