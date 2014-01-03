@@ -44,9 +44,10 @@
 #include <boost/format.hpp>
 
 #include <std_msgs/Bool.h>
+#include <std_msgs/Char.h>
 #ifdef HAVE_GTK
 #include <gtk/gtk.h>
-
+#include <string>
 // Platform-specific workaround for #3026: teleop_view doesn't close when
 // closing image window. On platforms using GTK+ we connect this to the
 // window's "destroy" event so that teleop_view exits.
@@ -71,6 +72,7 @@ class TeleopNodelet : public nodelet::Nodelet
 {
   image_transport::Subscriber sub_image;
   ros::Subscriber sub_mirror;
+  ros::Subscriber sub_ptz_favorite;
   ros::Publisher pub;
 
   boost::mutex image_mutex_;
@@ -88,7 +90,9 @@ class TeleopNodelet : public nodelet::Nodelet
   bool stale_flag;
   int staleness_counter;
   void mirrorCb(const std_msgs::Bool msg);
+  void ptzFavoriteCb(const std_msgs::Char msg);
   bool mirror_flag;
+  char ptz_favorite_flag;
   bool disregard_even_frames;
   bool odd_frame;
 /*  static void mouseCb(int event, int x, int y, int flags, void* param); */
@@ -114,6 +118,7 @@ void TeleopNodelet::onInit()
   stale_flag = false;
   staleness_counter = 0;
   mirror_flag = false;
+  ptz_favorite_flag = 0; // joystick (speed control) mode
   disregard_even_frames = true;
   odd_frame = false;
   ros::NodeHandle nh = getNodeHandle();
@@ -170,6 +175,8 @@ void TeleopNodelet::onInit()
                                                         getPrivateNodeHandle());
   sub_image = it.subscribe(topic, 1, &TeleopNodelet::imageCb, this, hints);
   sub_mirror = nh.subscribe("/axis/mirror", 1, &TeleopNodelet::mirrorCb, this);
+  sub_ptz_favorite = nh.subscribe("/axis/ptz_favorite", 1, 
+                                          &TeleopNodelet::ptzFavoriteCb, this);
   pub = nh.advertise<std_msgs::Bool>("is_stale", 1);
   ros::Rate r(2);
   std_msgs::Bool msg;
@@ -191,9 +198,16 @@ void TeleopNodelet::mirrorCb(const std_msgs::Bool msg)
 {
   mirror_flag = msg.data;
 }
-    
+   
+void TeleopNodelet::ptzFavoriteCb(const std_msgs::Char msg)
+{
+  // 0=joystick, 1 = goto1, 2 = goto2, 3 = goto3, 11=set1, 12 = set2, 13 = set3
+  ptz_favorite_flag = msg.data;
+}
+ 
 void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
 {
+  std::string ptz_favorite_string;
   int height, width, width_expanded, start_col;
   image_mutex_.lock();
   odd_frame = (!odd_frame); // toggle odd_frame between true and false
@@ -251,9 +265,22 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
     staleness_counter = 0;
     if (mirror_flag) {
       cv::flip(last_image_, last_image_, 1);
-      cv::putText(last_image_, "Mirrored", cv::Point(20, 30),
+      cv::putText(last_image_with_sidebar, "Mirrored", cv::Point(width, 30),
 			CV_FONT_HERSHEY_PLAIN, 1.5, CV_RGB(250,0,0), 2);
     }
+    if (ptz_favorite_flag == 0) {
+      ptz_favorite_string = "Joystick mode";
+    } else if (ptz_favorite_flag==1) {
+      ptz_favorite_string = "Pos 1";
+    } else if (ptz_favorite_flag==2) {
+      ptz_favorite_string = "Pos 2";
+    } else if (ptz_favorite_flag==3) {
+      ptz_favorite_string = "Pos 3";
+    } else {
+      ROS_ERROR("ptz_favorite=%c is out of range", ptz_favorite_flag);
+    }
+    cv::putText(last_image_with_sidebar, ptz_favorite_string, 
+         cv::Point(width,60), CV_FONT_HERSHEY_PLAIN, 0.5, CV_RGB(250,0,0), 0.7);
   }
   // Must release the mutex before calling cv::imshow, or can deadlock against
   // OpenCV's window mutex.
@@ -269,9 +296,9 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
 void TeleopNodelet::displayStaleImageText(void)
 {
   if (! last_image_.empty()) {
-    cv::putText(last_image_, "Stream is not live", cv::Point(50, 100), 
+    cv::putText(last_image_with_sidebar, "Stream is not live", cv::Point(50, 100), 
 			CV_FONT_HERSHEY_PLAIN, 4, CV_RGB(250,0,0), 5);
-    cv::imshow(window_name_, last_image_);
+    cv::imshow(window_name_, last_image_with_sidebar);
   }
 }
 
