@@ -48,6 +48,8 @@
 #ifdef HAVE_GTK
 #include <gtk/gtk.h>
 #include <string>
+#include <ctime>
+
 // Platform-specific workaround for #3026: teleop_view doesn't close when
 // closing image window. On platforms using GTK+ we connect this to the
 // window's "destroy" event so that teleop_view exits.
@@ -280,8 +282,14 @@ void TeleopNodelet::imageCb(const sensor_msgs::ImageConstPtr& msg)
       ROS_ERROR("ptz_favorite=%c is out of range", ptz_favorite_flag);
     }
     cv::putText(last_image_with_sidebar, ptz_favorite_string, 
-         cv::Point(width,60), CV_FONT_HERSHEY_PLAIN, 0.5, CV_RGB(250,0,0), 0.7);
+         cv::Point(width,60), CV_FONT_HERSHEY_PLAIN, 1.0, CV_RGB(250,0,0), 1.0);
   }
+  time_t rawtime;
+  time(&rawtime);
+  
+  cv::putText(last_image_with_sidebar,ctime(&rawtime),
+         cv::Point(width,90), CV_FONT_HERSHEY_PLAIN, 1.0, CV_RGB(250,0,0), 1.0);
+
   // Must release the mutex before calling cv::imshow, or can deadlock against
   // OpenCV's window mutex.
   image_mutex_.unlock();
